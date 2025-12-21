@@ -136,17 +136,32 @@ class MicroInvestment:
         """
         Simulate one day of investment activity.
         
+<<<<<<< HEAD
         This method performs three main steps:
         1. Apply compound interest to your existing portfolio (your money grows!)
         2. Add today's new investment to the portfolio
         3. Record all the details in the transaction history
         
+=======
+        This method performs these steps each day:
+        1. Apply compound interest to your existing portfolio (your money grows!)
+        2. Add new investment ONLY if it's an investment day (based on frequency)
+        3. Record all the details in the transaction history
+        
+        Important: Compound interest is applied EVERY day, but new money is only
+        added based on your frequency (daily, weekly, or monthly).
+        
+>>>>>>> f4970ac (Added options to choose varying investment amounts)
         The order is important! We apply returns FIRST, then add new money.
         This is how real investments work - your existing money earns returns
         before you add more.
         
         Example:
+<<<<<<< HEAD
             >>> investor = MicroInvestment(daily_investment=10.0)
+=======
+            >>> investor = MicroInvestment(investment_amount=10.0, frequency='daily')
+>>>>>>> f4970ac (Added options to choose varying investment amounts)
             >>> investor.invest_daily()  # Invest for one day
             >>> print(f"Portfolio value: ${investor.portfolio_value:.2f}")
         
@@ -162,12 +177,17 @@ class MicroInvestment:
         # This is where the "magic" of compound interest happens!
         # Example: If you have $100 and daily rate is 0.02%, you earn $0.02
         #          New value = $100 × 1.0002 = $100.02
+<<<<<<< HEAD
+=======
+        # NOTE: This happens EVERY day, regardless of investment frequency
+>>>>>>> f4970ac (Added options to choose varying investment amounts)
         self.portfolio_value *= (1 + self.daily_return_rate)
         
         # Calculate how much we earned today from compound interest
         # This is the difference between the new value and old value
         daily_return = self.portfolio_value - portfolio_before
         
+<<<<<<< HEAD
         # STEP 3: Add today's fresh investment
         # This is the new money we're putting in today
         self.portfolio_value += self.daily_investment
@@ -178,6 +198,28 @@ class MicroInvestment:
         # Increment the day counter
         self.days_invested += 1
         
+=======
+        # STEP 3: Check if today is an investment day
+        # For daily: invest every day (next_investment_day = 1, 2, 3, ...)
+        # For weekly: invest every 7 days (next_investment_day = 1, 8, 15, ...)
+        # For monthly: invest every 30 days (next_investment_day = 1, 31, 61, ...)
+        investment_made_today = 0.0
+        
+        # Increment the day counter first
+        self.days_invested += 1
+        
+        # Check if we should invest today
+        if self.days_invested >= self.next_investment_day:
+            # Yes! Today is an investment day
+            # Add the full investment amount (not daily_investment)
+            investment_made_today = self.investment_amount
+            self.portfolio_value += investment_made_today
+            self.total_invested += investment_made_today
+            
+            # Schedule the next investment day
+            self.next_investment_day += self.investment_interval_days
+        
+>>>>>>> f4970ac (Added options to choose varying investment amounts)
         # STEP 4: Record this transaction for our history
         # Calculate what date this transaction represents
         # (start_date + number of days since we started)
@@ -188,7 +230,11 @@ class MicroInvestment:
         transaction = {
             'day': self.days_invested,  # Which day number is this?
             'date': transaction_date.strftime('%Y-%m-%d'),  # What's the actual date?
+<<<<<<< HEAD
             'investment_amount': self.daily_investment,  # How much did we invest today?
+=======
+            'investment_amount': investment_made_today,  # How much did we invest today?
+>>>>>>> f4970ac (Added options to choose varying investment amounts)
             'portfolio_before': round(portfolio_before, 2),  # Value before today's activity
             'daily_return': round(daily_return, 2),  # How much did we earn from interest?
             'portfolio_after': round(self.portfolio_value, 2),  # Value after everything
@@ -292,7 +338,12 @@ class MicroInvestment:
         Returns:
             dict: A dictionary with these keys:
                 - 'days_invested': How many days you've been investing
+<<<<<<< HEAD
                 - 'daily_investment': How much you invest each day
+=======
+                - 'investment_amount': How much you invest per period
+                - 'frequency': How often you invest (daily/weekly/monthly)
+>>>>>>> f4970ac (Added options to choose varying investment amounts)
                 - 'total_invested': Total money you've put in
                 - 'portfolio_value': Current value of your portfolio
                 - 'total_return': Your profit/loss in dollars
@@ -300,7 +351,11 @@ class MicroInvestment:
                 - 'annual_return_rate': The annual return rate (as percentage)
         
         Example:
+<<<<<<< HEAD
             >>> investor = MicroInvestment(daily_investment=10.0)
+=======
+            >>> investor = MicroInvestment(investment_amount=10.0, frequency='daily')
+>>>>>>> f4970ac (Added options to choose varying investment amounts)
             >>> investor.invest_for_days(30)
             >>> summary = investor.get_summary()
             >>> print(f"Invested ${summary['total_invested']} over {summary['days_invested']} days")
@@ -313,7 +368,8 @@ class MicroInvestment:
         # Create and return a dictionary with all the key metrics
         return {
             'days_invested': self.days_invested,
-            'daily_investment': self.daily_investment,
+            'investment_amount': self.investment_amount,
+            'frequency': self.frequency,
             'total_invested': round(self.total_invested, 2),
             'portfolio_value': round(self.portfolio_value, 2),
             'total_return': round(self.get_total_return(), 2),
@@ -329,7 +385,11 @@ class MicroInvestment:
         Perfect for quickly checking how your investment is doing!
         
         Example:
+<<<<<<< HEAD
             >>> investor = MicroInvestment(daily_investment=10.0)
+=======
+            >>> investor = MicroInvestment(investment_amount=70.0, frequency='weekly')
+>>>>>>> f4970ac (Added options to choose varying investment amounts)
             >>> investor.invest_for_days(365)
             >>> investor.print_summary()
             
@@ -338,7 +398,11 @@ class MicroInvestment:
             MICRO-INVESTMENT SUMMARY
             ==================================================
             Days Invested:        365
+<<<<<<< HEAD
             Daily Investment:     $10.00
+=======
+            Investment Amount:    $70.00 weekly
+>>>>>>> f4970ac (Added options to choose varying investment amounts)
             Annual Return Rate:   8.0%
             --------------------------------------------------
             Total Invested:       $3650.00
@@ -361,7 +425,7 @@ class MicroInvestment:
         
         # Print investment parameters
         print(f"Days Invested:        {summary['days_invested']}")
-        print(f"Daily Investment:     ${summary['daily_investment']:.2f}")
+        print(f"Investment Amount:    ${summary['investment_amount']:.2f} {summary['frequency']}")
         print(f"Annual Return Rate:   {summary['annual_return_rate']:.1f}%")
         
         # Print a divider
