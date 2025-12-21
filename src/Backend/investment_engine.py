@@ -40,6 +40,9 @@ class MicroInvestment:
     # Class constant: Minimum investment amount
     MINIMUM_INVESTMENT = 10.0
     
+    # Class constant: Platform fee percentage (2%)
+    PLATFORM_FEE_RATE = 0.02
+    
     def __init__(self, investment_amount, frequency='daily', annual_return_rate=0.08):
         """
         Initialize the micro-investment simulator with your investment parameters.
@@ -50,7 +53,8 @@ class MicroInvestment:
         Args:
             investment_amount (float): The amount of money you invest per period.
                 Must be at least $10.00 (for daily) or equivalent for other frequencies.
-                Example: 10.0 with frequency='daily' means $10 every day
+                Note: A 2% platform fee will be deducted from each investment.
+                Example: $10.00 investment → $0.20 fee → $9.80 net invested
                 Example: 70.0 with frequency='weekly' means $70 every week
                 Example: 300.0 with frequency='monthly' means $300 every month
             
@@ -68,20 +72,22 @@ class MicroInvestment:
         
         Example:
             >>> # Invest $10 daily with 10% annual returns
+            >>> # After 2% fee: $9.80 goes to portfolio, $0.20 to platform
             >>> investor = MicroInvestment(investment_amount=10.0, frequency='daily')
             >>> 
             >>> # Invest $300 monthly with 8% annual returns
+            >>> # After 2% fee: $294 goes to portfolio, $6 to platform
             >>> investor = MicroInvestment(investment_amount=300.0, frequency='monthly')
         """
         # Validate the frequency parameter
-        valid_frequencies = ['daily', 'weekly', 'monthly']
+        valid_frequencies = ['daily', 'weekly', '15_days', 'monthly']
         if frequency.lower() not in valid_frequencies:
             raise ValueError(f"Invalid frequency '{frequency}'. Must be one of: {', '.join(valid_frequencies)}")
         
         # Store the frequency (convert to lowercase for consistency)
         self.frequency = frequency.lower()
         
-        # Store the original investment amount (per period)
+        # Store the original investment amount (per period) - this is the GROSS amount
         self.investment_amount = investment_amount
         
         # Calculate how many days between investments based on frequency
@@ -89,12 +95,15 @@ class MicroInvestment:
             self.investment_interval_days = 1
         elif self.frequency == 'weekly':
             self.investment_interval_days = 7
+        elif self.frequency == '15_days':
+            self.investment_interval_days = 15
         else:  # monthly
             self.investment_interval_days = 30
         
-        # Calculate the daily investment amount
+        # Calculate the daily investment amount (gross)
         # For daily: daily_investment = investment_amount
         # For weekly: daily_investment = investment_amount / 7
+        # For 15_days: daily_investment = investment_amount / 15
         # For monthly: daily_investment = investment_amount / 30
         self.daily_investment = investment_amount / self.investment_interval_days
         
@@ -110,7 +119,13 @@ class MicroInvestment:
         # Store the annual return rate (e.g., 0.08 = 8% per year)
         self.annual_return_rate = annual_return_rate
         
-        # Track the total amount of money we've put in (starts at $0)
+        # Track the total GROSS amount invested (before fees)
+        self.total_gross_invested = 0.0
+        
+        # Track the total platform fees collected (2% of each investment)
+        self.total_platform_fees = 0.0
+        
+        # Track the total NET amount invested (after fees - what actually goes to portfolio)
         self.total_invested = 0.0
         
         # Track the current value of our portfolio including returns (starts at $0)
@@ -127,6 +142,9 @@ class MicroInvestment:
         
         # Remember when we started investing (today's date)
         self.start_date = datetime.now()
+        
+        # Vesto main-funds account: tracks all platform fees collected
+        self.vesto_main_funds = 0.0
         
         # Calculate the daily return rate from the annual rate
         # Why? Because we compound daily, not yearly!
@@ -151,8 +169,16 @@ class MicroInvestment:
 =======
         This method performs these steps each day:
         1. Apply compound interest to your existing portfolio (your money grows!)
-        2. Add new investment ONLY if it's an investment day (based on frequency)
+        2. If it's an investment day:
+           a. Calculate 2% platform fee from gross investment
+           b. Add platform fee to Vesto main-funds account
+           c. Add net amount (after fee) to portfolio
         3. Record all the details in the transaction history
+        
+        Platform Fee Example:
+            - Gross investment: $100.00
+            - Platform fee (2%): $2.00 → goes to Vesto main-funds
+            - Net invested: $98.00 → goes to your portfolio
         
         Important: Compound interest is applied EVERY day, but new money is only
         added based on your frequency (daily, weekly, or monthly).
@@ -170,6 +196,7 @@ class MicroInvestment:
 >>>>>>> f4970ac (Added options to choose varying investment amounts)
             >>> investor.invest_daily()  # Invest for one day
             >>> print(f"Portfolio value: ${investor.portfolio_value:.2f}")
+            >>> print(f"Platform fees collected: ${investor.vesto_main_funds:.2f}")
         
         Note:
             This method is called automatically by invest_for_days(), so you
@@ -208,8 +235,11 @@ class MicroInvestment:
         # STEP 3: Check if today is an investment day
         # For daily: invest every day (next_investment_day = 1, 2, 3, ...)
         # For weekly: invest every 7 days (next_investment_day = 1, 8, 15, ...)
+        # For 15_days: invest every 15 days (next_investment_day = 1, 16, 31, ...)
         # For monthly: invest every 30 days (next_investment_day = 1, 31, 61, ...)
-        investment_made_today = 0.0
+        gross_investment = 0.0
+        platform_fee = 0.0
+        net_investment = 0.0
         
         # Increment the day counter first
         self.days_invested += 1
@@ -217,10 +247,33 @@ class MicroInvestment:
         # Check if we should invest today
         if self.days_invested >= self.next_investment_day:
             # Yes! Today is an investment day
-            # Add the full investment amount (not daily_investment)
-            investment_made_today = self.investment_amount
-            self.portfolio_value += investment_made_today
-            self.total_invested += investment_made_today
+            
+            # Calculate the gross investment amount (what the client pays)
+            gross_investment = self.investment_amount
+            
+            # Calculate the 2% platform fee
+            # Example: $100 × 0.02 = $2.00 fee
+            platform_fee = gross_investment * self.PLATFORM_FEE_RATE
+            
+            # Calculate the net investment (what actually goes to the portfolio)
+            # Example: $100 - $2.00 = $98.00 net invested
+            net_investment = gross_investment - platform_fee
+            
+            # Add the net amount to the portfolio (NOT the gross amount!)
+            # Only the money after fees contributes to portfolio growth
+            self.portfolio_value += net_investment
+            
+            # Track the gross amount (total client paid)
+            self.total_gross_invested += gross_investment
+            
+            # Track the platform fee collected
+            self.total_platform_fees += platform_fee
+            
+            # Transfer the platform fee to Vesto main-funds account
+            self.vesto_main_funds += platform_fee
+            
+            # Track the net amount invested (what's actually in the portfolio)
+            self.total_invested += net_investment
             
             # Schedule the next investment day
             self.next_investment_day += self.investment_interval_days
@@ -237,14 +290,23 @@ class MicroInvestment:
             'day': self.days_invested,  # Which day number is this?
             'date': transaction_date.strftime('%Y-%m-%d'),  # What's the actual date?
 <<<<<<< HEAD
+<<<<<<< HEAD
             'investment_amount': self.daily_investment,  # How much did we invest today?
 =======
             'investment_amount': investment_made_today,  # How much did we invest today?
 >>>>>>> f4970ac (Added options to choose varying investment amounts)
+=======
+            'gross_investment': round(gross_investment, 2),  # Amount client paid (before fee)
+            'platform_fee': round(platform_fee, 2),  # 2% fee deducted
+            'net_investment': round(net_investment, 2),  # Amount added to portfolio (after fee)
+>>>>>>> 0c3abf9 (data of simulations)
             'portfolio_before': round(portfolio_before, 2),  # Value before today's activity
             'daily_return': round(daily_return, 2),  # How much did we earn from interest?
             'portfolio_after': round(self.portfolio_value, 2),  # Value after everything
-            'total_invested': round(self.total_invested, 2)  # Total money we've put in
+            'total_gross_invested': round(self.total_gross_invested, 2),  # Total client paid
+            'total_platform_fees': round(self.total_platform_fees, 2),  # Total fees collected
+            'total_net_invested': round(self.total_invested, 2),  # Total in portfolio
+            'vesto_main_funds': round(self.vesto_main_funds, 2)  # Platform fees account balance
         }
         
         # Add this transaction to our history list
@@ -345,16 +407,25 @@ class MicroInvestment:
             dict: A dictionary with these keys:
                 - 'days_invested': How many days you've been investing
 <<<<<<< HEAD
+<<<<<<< HEAD
                 - 'daily_investment': How much you invest each day
 =======
                 - 'investment_amount': How much you invest per period
                 - 'frequency': How often you invest (daily/weekly/monthly)
 >>>>>>> f4970ac (Added options to choose varying investment amounts)
                 - 'total_invested': Total money you've put in
+=======
+                - 'investment_amount': How much you invest per period (gross)
+                - 'frequency': How often you invest (daily/weekly/monthly)
+                - 'total_gross_invested': Total amount paid (before fees)
+                - 'total_platform_fees': Total 2% fees collected
+                - 'total_net_invested': Total actually invested (after fees)
+>>>>>>> 0c3abf9 (data of simulations)
                 - 'portfolio_value': Current value of your portfolio
                 - 'total_return': Your profit/loss in dollars
                 - 'return_percentage': Your profit/loss as a percentage
                 - 'annual_return_rate': The annual return rate (as percentage)
+                - 'vesto_main_funds': Platform fees account balance
         
         Example:
 <<<<<<< HEAD
@@ -364,8 +435,9 @@ class MicroInvestment:
 >>>>>>> f4970ac (Added options to choose varying investment amounts)
             >>> investor.invest_for_days(30)
             >>> summary = investor.get_summary()
-            >>> print(f"Invested ${summary['total_invested']} over {summary['days_invested']} days")
-            >>> print(f"Current value: ${summary['portfolio_value']}")
+            >>> print(f"Gross invested: ${summary['total_gross_invested']}")
+            >>> print(f"Platform fees: ${summary['total_platform_fees']}")
+            >>> print(f"Net invested: ${summary['total_net_invested']}")
         
         Note:
             If you just want to see the summary printed nicely, use
@@ -376,11 +448,14 @@ class MicroInvestment:
             'days_invested': self.days_invested,
             'investment_amount': self.investment_amount,
             'frequency': self.frequency,
-            'total_invested': round(self.total_invested, 2),
+            'total_gross_invested': round(self.total_gross_invested, 2),
+            'total_platform_fees': round(self.total_platform_fees, 2),
+            'total_net_invested': round(self.total_invested, 2),
             'portfolio_value': round(self.portfolio_value, 2),
             'total_return': round(self.get_total_return(), 2),
             'return_percentage': round(self.get_return_percentage(), 2),
-            'annual_return_rate': self.annual_return_rate * 100  # Convert to percentage
+            'annual_return_rate': self.annual_return_rate * 100,  # Convert to percentage
+            'vesto_main_funds': round(self.vesto_main_funds, 2)
         }
     
     def print_summary(self):
@@ -411,10 +486,14 @@ class MicroInvestment:
 >>>>>>> f4970ac (Added options to choose varying investment amounts)
             Annual Return Rate:   8.0%
             --------------------------------------------------
-            Total Invested:       $3650.00
-            Portfolio Value:      $3800.50
-            Total Return:         $150.50
-            Return Percentage:    4.12%
+            Gross Invested:       $3650.00
+            Platform Fees (2%):   $73.00
+            Net Invested:         $3577.00
+            Portfolio Value:      $3720.50
+            Total Return:         $143.50
+            Return Percentage:    4.01%
+            --------------------------------------------------
+            Vesto Main-Funds:     $73.00
             ==================================================
         
         Note:
@@ -437,11 +516,17 @@ class MicroInvestment:
         # Print a divider
         print("-"*50)
         
-        # Print current status and returns
-        print(f"Total Invested:       ${summary['total_invested']:.2f}")
+        # Print investment breakdown with fees
+        print(f"Gross Invested:       ${summary['total_gross_invested']:.2f}")
+        print(f"Platform Fees (2%):   ${summary['total_platform_fees']:.2f}")
+        print(f"Net Invested:         ${summary['total_net_invested']:.2f}")
         print(f"Portfolio Value:      ${summary['portfolio_value']:.2f}")
         print(f"Total Return:         ${summary['total_return']:.2f}")
-        print(f"Return Percentage:    {summary['return_percentage']:.2f}%")
+        print(f"Return Percentage:    ${summary['return_percentage']:.2f}%")
+        
+        # Print platform fees section
+        print("-"*50)
+        print(f"Vesto Main-Funds:     ${summary['vesto_main_funds']:.2f}")
         
         # Print a footer
         print("="*50 + "\n")
@@ -748,6 +833,12 @@ class MicroInvestment:
             This requires matplotlib to be installed. The graph shows weekly
             data points (not daily) to keep the visualization clean and readable.
         """
+        # Check if matplotlib is available
+        if not MATPLOTLIB_AVAILABLE:
+            print("❌ Matplotlib is not installed. Cannot generate graph.")
+            print("   To install: pip install matplotlib")
+            return
+        
         # Get the dashboard data which includes weekly summaries
         dashboard = self.get_portfolio_dashboard()
         weekly_data = dashboard['weekly_data']
