@@ -1,7 +1,13 @@
 # Import required libraries
 from datetime import datetime, timedelta  # For handling dates and time calculations
-import matplotlib.pyplot as plt  # For creating graphs and visualizations
-import matplotlib.dates as mdates  # For formatting dates in graphs
+
+# Optional: matplotlib for creating graphs (not required for core functionality)
+try:
+    import matplotlib.pyplot as plt  # For creating graphs and visualizations
+    import matplotlib.dates as mdates  # For formatting dates in graphs
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
 
 
 class MicroInvestment:
@@ -615,7 +621,8 @@ class MicroInvestment:
             'net_profit': round(net_profit, 2),
             'roi_percentage': round(roi_percentage, 2),
             'days_invested': self.days_invested,
-            'daily_investment': self.daily_investment,
+            'investment_amount': self.investment_amount,
+            'frequency': self.frequency,
             'annual_return_rate': self.annual_return_rate * 100,
             'weekly_data': weekly_data
         }
@@ -685,7 +692,7 @@ class MicroInvestment:
         print("\n📈 INVESTMENT DETAILS")
         print("-"*60)
         print(f"  Days Invested:          {dashboard['days_invested']:>12}")
-        print(f"  Daily Investment:      ${dashboard['daily_investment']:>12,.2f}")
+        print(f"  Investment Amount:     ${dashboard['investment_amount']:>12,.2f} {dashboard['frequency']}")
         print(f"  Annual Return Rate:     {dashboard['annual_return_rate']:>11.1f}%")
         
         # SECTION 3: Weekly Performance
@@ -850,6 +857,111 @@ class MicroInvestment:
 
 
 # =============================================================================
+# HELPER FUNCTION FOR USER INPUT
+# =============================================================================
+
+def get_user_investment_parameters():
+    """
+    Interactively get investment parameters from the user.
+    
+    This function prompts the user to enter:
+    - Investment amount (with validation for $10 minimum)
+    - Investment frequency (daily, weekly, or monthly)
+    - Annual return rate (optional, defaults to 8%)
+    
+    Returns:
+        tuple: (investment_amount, frequency, annual_return_rate)
+    
+    Example:
+        >>> amount, freq, rate = get_user_investment_parameters()
+        >>> investor = MicroInvestment(investment_amount=amount, frequency=freq, annual_return_rate=rate)
+    """
+    print("\n" + "="*60)
+    print("MICRO-INVESTMENT SIMULATOR - SETUP")
+    print("="*60)
+    print("Let's set up your investment simulation!\n")
+    
+    # STEP 1: Get investment frequency
+    print("How often do you want to invest?")
+    print("  1. Daily")
+    print("  2. Weekly")
+    print("  3. Monthly")
+    
+    while True:
+        choice = input("\nEnter your choice (1-3): ").strip()
+        if choice == '1':
+            frequency = 'daily'
+            interval_days = 1
+            break
+        elif choice == '2':
+            frequency = 'weekly'
+            interval_days = 7
+            break
+        elif choice == '3':
+            frequency = 'monthly'
+            interval_days = 30
+            break
+        else:
+            print("Invalid choice. Please enter 1, 2, or 3.")
+    
+    # STEP 2: Get investment amount with validation
+    min_amount = MicroInvestment.MINIMUM_INVESTMENT * interval_days
+    
+    print(f"\nYou selected: {frequency.upper()} investments")
+    print(f"Minimum investment amount: ${min_amount:.2f} per {frequency} period")
+    print(f"(This ensures at least ${MicroInvestment.MINIMUM_INVESTMENT:.2f}/day equivalent)")
+    
+    while True:
+        try:
+            amount_input = input(f"\nEnter your {frequency} investment amount ($): ").strip()
+            investment_amount = float(amount_input)
+            
+            if investment_amount < min_amount:
+                print(f"❌ Amount too low! Minimum is ${min_amount:.2f} for {frequency} frequency.")
+                print(f"   (This equals ${investment_amount/interval_days:.2f}/day, but we need ${MicroInvestment.MINIMUM_INVESTMENT:.2f}/day minimum)")
+                continue
+            
+            print(f"✓ Great! You'll invest ${investment_amount:.2f} {frequency}")
+            print(f"  (Equivalent to ${investment_amount/interval_days:.2f} per day)")
+            break
+        except ValueError:
+            print("❌ Invalid input. Please enter a number (e.g., 10.00)")
+    
+    # STEP 3: Get annual return rate (optional)
+    print("\nWhat annual return rate do you expect?")
+    print("  (Press Enter to use default: 8.0%)")
+    
+    while True:
+        rate_input = input("Enter annual return rate (%) or press Enter: ").strip()
+        
+        if rate_input == '':
+            annual_return_rate = 0.08
+            print(f"✓ Using default: 8.0% annual return")
+            break
+        
+        try:
+            rate_percent = float(rate_input)
+            if rate_percent <= 0 or rate_percent > 100:
+                print("❌ Please enter a rate between 0 and 100")
+                continue
+            
+            annual_return_rate = rate_percent / 100
+            print(f"✓ Using {rate_percent}% annual return")
+            break
+        except ValueError:
+            print("❌ Invalid input. Please enter a number (e.g., 8.5)")
+    
+    print("\n" + "="*60)
+    print("SETUP COMPLETE!")
+    print("="*60)
+    print(f"Investment Amount: ${investment_amount:.2f} {frequency}")
+    print(f"Annual Return Rate: {annual_return_rate * 100:.1f}%")
+    print("="*60 + "\n")
+    
+    return investment_amount, frequency, annual_return_rate
+
+
+# =============================================================================
 # EXAMPLE USAGE AND DEMONSTRATION
 # =============================================================================
 # This section shows you how to use the MicroInvestment class.
@@ -857,76 +969,113 @@ class MicroInvestment:
 # This is a complete working example that demonstrates all the main features.
 
 if __name__ == "__main__":
-    # STEP 1: Create an investment simulator
-    # This sets up a simulation where we invest $10 every day
-    # and expect an 8% annual return rate (0.08 as a decimal)
-    investor = MicroInvestment(daily_investment=10.0, annual_return_rate=0.08)
+    print("Welcome to the Micro-Investment Simulator!")
+    print("This tool helps you visualize how regular investments grow over time.\n")
     
-    print("Starting micro-investment simulation...")
-    print(f"Daily investment: ${investor.daily_investment}")
-    print(f"Annual return rate: {investor.annual_return_rate * 100}%")
+    # Ask user if they want to use interactive mode or example mode
+    print("Choose a mode:")
+    print("  1. Interactive Mode (enter your own values)")
+    print("  2. Example Mode (use pre-set values for demonstration)")
     
-    # STEP 2: Simulate investing for 1 year (365 days)
-    print("\n" + "="*60)
-    print("SIMULATING 1 YEAR OF DAILY INVESTMENTS")
-    print("="*60)
+    mode_choice = input("\nEnter your choice (1-2): ").strip()
     
-    # This will simulate 365 days of investing
-    # Each day: apply compound interest, then add $10
-    investor.invest_for_days(365)
-    
-    # STEP 3: View the comprehensive dashboard
-    # This shows key metrics, investment details, and recent weekly performance
-    investor.print_dashboard()
-    
-    # STEP 4: View detailed transaction history
-    # Show the last 10 days of transactions in a table format
-    print("Last 10 transactions:")
-    investor.print_transaction_history(last_n=10)
-    
-    # STEP 5: Generate and save a visualization
-    # This creates a graph showing how your investment grew over time
-    print("\nGenerating weekly growth graph...")
-    investor.plot_weekly_growth(save_path='portfolio_growth_1year.png')
-    
-    # STEP 6: Continue investing for another year (total 2 years now)
-    print("\n" + "="*60)
-    print("CONTINUING TO 2 YEARS")
-    print("="*60)
-    
-    # Invest for another 365 days (we're now at 730 total days)
-    investor.invest_for_days(365)
-    
-    # STEP 7: View updated dashboard after 2 years
-    investor.print_dashboard()
-    
-    # STEP 8: Generate updated graph showing 2 years of growth
-    print("\nGenerating updated weekly growth graph...")
-    investor.plot_weekly_growth(save_path='portfolio_growth_2years.png')
-    
-    # STEP 9: Display final summary
-    print("\n" + "="*60)
-    print("FINAL SUMMARY")
-    print("="*60)
-    investor.print_summary()
-    
-    # STEP 10: Access data programmatically
-    # You can get the raw data as a dictionary to use in your own code
-    dashboard_data = investor.get_portfolio_dashboard()
-    
-    # Calculate and display some custom statistics
-    total_weeks = len(dashboard_data['weekly_data'])
-    
-    # Calculate average weekly return
-    # This sums all weekly returns and divides by the number of weeks
-    if total_weeks > 0:
-        avg_weekly_return = sum(w['weekly_return'] for w in dashboard_data['weekly_data']) / total_weeks
-        print(f"\nTotal weeks invested: {total_weeks}")
-        print(f"Average weekly return: ${avg_weekly_return:.2f}")
-    
-    # You can also access individual transaction data
-    # For example, let's look at the very first transaction
-    if investor.transaction_history:
-        first_txn = investor.transaction_history[0]
-        print(f"\nFirst transaction was on {first_txn['date']}")
-        print(f"Started with ${first_txn['investment_amount']:.2f}")
+    if mode_choice == '1':
+        # INTERACTIVE MODE: Get user input
+        investment_amount, frequency, annual_return_rate = get_user_investment_parameters()
+        
+        # Create the investor with user's parameters
+        investor = MicroInvestment(
+            investment_amount=investment_amount,
+            frequency=frequency,
+            annual_return_rate=annual_return_rate
+        )
+        
+        # Ask how long to simulate
+        print("How long would you like to simulate?")
+        while True:
+            try:
+                days_input = input("Enter number of days (e.g., 30, 365): ").strip()
+                num_days = int(days_input)
+                if num_days <= 0:
+                    print("❌ Please enter a positive number")
+                    continue
+                break
+            except ValueError:
+                print("❌ Invalid input. Please enter a whole number")
+        
+        print(f"\n🚀 Simulating {num_days} days of investing...")
+        investor.invest_for_days(num_days)
+        
+        # Show results
+        investor.print_dashboard()
+        investor.print_summary()
+        
+        # Offer to show transaction history
+        show_history = input("\nWould you like to see transaction history? (y/n): ").strip().lower()
+        if show_history == 'y':
+            try:
+                num_txns = int(input("How many recent transactions to show? (default 10): ").strip() or "10")
+                investor.print_transaction_history(last_n=num_txns)
+            except ValueError:
+                investor.print_transaction_history(last_n=10)
+        
+    else:
+        # EXAMPLE MODE: Use pre-set values for demonstration
+        print("\n" + "="*60)
+        print("RUNNING EXAMPLE DEMONSTRATION")
+        print("="*60)
+        
+        # STEP 1: Create an investment simulator
+        # This sets up a simulation where we invest $70 every week
+        # and expect an 8% annual return rate (0.08 as a decimal)
+        investor = MicroInvestment(investment_amount=70.0, frequency='weekly', annual_return_rate=0.08)
+        
+        print("Example setup:")
+        print(f"  Investment: ${investor.investment_amount} {investor.frequency}")
+        print(f"  Annual return rate: {investor.annual_return_rate * 100}%")
+        
+        # STEP 2: Simulate investing for 1 year (365 days)
+        print("\n" + "="*60)
+        print("SIMULATING 1 YEAR OF WEEKLY INVESTMENTS")
+        print("="*60)
+        
+        # This will simulate 365 days of investing
+        # Each day: apply compound interest
+        # Every 7 days: add $70
+        investor.invest_for_days(365)
+        
+        # STEP 3: View the comprehensive dashboard
+        # This shows key metrics, investment details, and recent weekly performance
+        investor.print_dashboard()
+        
+        # STEP 4: View detailed transaction history
+        # Show the last 10 days of transactions in a table format
+        print("Last 10 transactions:")
+        investor.print_transaction_history(last_n=10)
+        
+        # STEP 5: Display final summary
+        print("\n" + "="*60)
+        print("FINAL SUMMARY")
+        print("="*60)
+        investor.print_summary()
+        
+        # STEP 6: Access data programmatically
+        # You can get the raw data as a dictionary to use in your own code
+        dashboard_data = investor.get_portfolio_dashboard()
+        
+        # Calculate and display some custom statistics
+        total_weeks = len(dashboard_data['weekly_data'])
+        
+        # Calculate average weekly return
+        # This sums all weekly returns and divides by the number of weeks
+        if total_weeks > 0:
+            avg_weekly_return = sum(w['weekly_return'] for w in dashboard_data['weekly_data']) / total_weeks
+            print(f"\nTotal weeks invested: {total_weeks}")
+            print(f"Average weekly return: ${avg_weekly_return:.2f}")
+        
+        # You can also access individual transaction data
+        # For example, let's look at the very first transaction
+        if investor.transaction_history:
+            first_txn = investor.transaction_history[0]
+            print(f"\nFirst transaction was on {first_txn['date']}")
+            print(f"Started with ${first_txn['investment_amount']:.2f}")
