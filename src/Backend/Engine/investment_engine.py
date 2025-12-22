@@ -75,6 +75,15 @@ class MicroInvestment:
         self.total_invested_real = 0.0
     
     
+    def invest(self, net_amount):
+        """
+        Invest a lump sum (net amount after fees) directly into the portfolio.
+        This is used by external APIs to add funds ad-hoc.
+        """
+        self.portfolio_value += net_amount
+        self.total_invested += net_amount
+        self.total_invested_real += net_amount  # Simplified real tracking for ad-hoc
+    
     def invest_daily(self):
         """
         Simulate one day of investment activity.

@@ -1,0 +1,79 @@
+from flask import Flask, jsonify, request
+import sys
+import os
+
+# Add Engine directory to path to allow import
+sys.path.append(os.path.join(os.path.dirname(__file__), '../Engine'))
+from investment_engine import MicroInvestment
+
+# Create the Flask application
+app = Flask(__name__)
+
+# Initialize the investment engine
+engine = MicroInvestment(investment_amount=10.0)  # Default init
+
+@app.route('/invest', methods=['POST'])
+def invest():
+    """
+    Invest funds into a specific fund.
+    Expects JSON: { "amount": 100.0, "fund_id": "fund_001" }
+    """
+    data = request.get_json()
+    
+    if not data or 'amount' not in data or 'fund_id' not in data:
+        return jsonify({'error': 'Invalid request. Provide amount and fund_id.'}), 400
+        
+    gross_amount = float(data['amount'])
+    fund_id = data['fund_id']
+    
+    # Calculate fees (2%)
+    fee = gross_amount * 0.02
+    net_invested = gross_amount - fee
+    
+    # Call the engine
+    engine.invest(net_invested)
+    
+    return jsonify({
+        'gross_amount': gross_amount,
+        'fee': fee,
+        'net_invested': net_invested,
+        'fund_id': fund_id
+    })
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """
+    Simple health check endpoint.
+    Returns status: 'ok' to verify the API is running.
+    """
+    return jsonify({
+        'status': 'ok'
+    })
+
+@app.route('/funds', methods=['GET'])
+def get_funds():
+    """
+    Returns a list of available funds.
+    Currently hardcoded with one liquid mutual fund.
+    """
+    funds = [
+        {
+            'fund_id': 'fund_001',
+            'name': 'Vesto Liquid Fund Direct Growth',
+            'type': 'Liquid Mutual Fund',
+            'risk_level': 'Low',
+            'expected_return_range': '6-7%',
+            'description': 'A low-risk fund that works like a high-yield savings account. It invests in safe, short-term assets so you earn steady returns without locking your money away.'
+        }
+    ]
+    return jsonify({
+        'funds': funds,
+        'count': len(funds)
+    })
+
+if __name__ == '__main__':
+    # Run the application
+    # debug=True allows for auto-reloading during development
+    print("Starting Flask API...")
+    print("Try accessing: http://127.0.0.1:5000/health")
+    app.run(debug=True, port=5000)
