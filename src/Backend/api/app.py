@@ -87,6 +87,13 @@ def get_portfolio():
         'real_roi': summary['real_return_percentage']
     })
 
+@app.route('/insights', methods=['GET'])
+def get_insights():
+    """
+    Returns insights on investment performance.
+    """
+    return jsonify(engine.get_insights())
+
 #DEBUGGING ENDPOINT
 @app.route("/debug", methods=["GET"])
 def debug():

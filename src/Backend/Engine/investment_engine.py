@@ -240,3 +240,20 @@ class MicroInvestment:
             'annual_return_rate': self.annual_return_rate * 100,
             'weekly_data': weekly_data
         }
+
+    def get_insights(self):
+        """
+        Get simplified insights about the investment performance.
+        Includes estimated loss from idle money and inflation impact.
+        """
+        real_value = self.get_real_portfolio_value()
+        
+        # Idle money loss (Simplified assumption: Difference between Nominal and Real value represents purchasing power lost)
+        idle_money_loss = self.portfolio_value - real_value
+        
+        return {
+            'idle_money_loss': round(idle_money_loss, 2),
+            'daily_vs_periodic_gain': 0.0,  # Placeholder as we don't simulate parallel scenarios
+            'inflation_message': f"Inflation at {self.annual_inflation_rate*100}% has reduced your real value by ${idle_money_loss:.2f}",
+            'disclaimer': "Estimated returns are based on historical data and not guaranteed."
+        }
