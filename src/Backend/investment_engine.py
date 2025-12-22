@@ -43,7 +43,7 @@ class MicroInvestment:
     # Class constant: Platform fee percentage (2%)
     PLATFORM_FEE_RATE = 0.02
     
-    def __init__(self, investment_amount, frequency='daily', annual_return_rate=0.08):
+    def __init__(self, investment_amount, frequency='daily', annual_return_rate=0.08, annual_inflation_rate=0.0):
         """
         Initialize the micro-investment simulator with your investment parameters.
         
@@ -61,23 +61,23 @@ class MicroInvestment:
             frequency (str): How often you invest. Options:
                 - 'daily': Invest every day (default)
                 - 'weekly': Invest once per week (every 7 days)
+                - '15_days': Invest once every 15 days
                 - 'monthly': Invest once per month (every 30 days)
             
             annual_return_rate (float): The yearly return rate as a decimal.
                 Default is 0.08, which means 8% annual returns.
                 Example: 0.08 = 8%, 0.12 = 12%, 0.05 = 5%
+
+            annual_inflation_rate (float): The yearly inflation rate as a decimal.
+                Default is 0.0, which means 0% inflation.
+                Example: 0.03 = 3% inflation.
         
         Raises:
             ValueError: If investment_amount is less than $10 or frequency is invalid
         
         Example:
-            >>> # Invest $10 daily with 10% annual returns
-            >>> # After 2% fee: $9.80 goes to portfolio, $0.20 to platform
-            >>> investor = MicroInvestment(investment_amount=10.0, frequency='daily')
-            >>> 
-            >>> # Invest $300 monthly with 8% annual returns
-            >>> # After 2% fee: $294 goes to portfolio, $6 to platform
-            >>> investor = MicroInvestment(investment_amount=300.0, frequency='monthly')
+            >>> # Invest $10 daily with 10% annual returns and 3% inflation
+            >>> investor = MicroInvestment(investment_amount=10.0, frequency='daily', annual_inflation_rate=0.03)
         """
         # Validate the frequency parameter
         valid_frequencies = ['daily', 'weekly', '15_days', 'monthly']
@@ -154,19 +154,22 @@ class MicroInvestment:
         #   - Example: (1.08)^(1/365) - 1 ≈ 0.0002107 (about 0.02% per day)
         #   - This ensures that after 365 days of compounding, we get exactly 8% annual return
         self.daily_return_rate = (1 + annual_return_rate) ** (1/365) - 1
+
+        # Store the annual inflation rate
+        self.annual_inflation_rate = annual_inflation_rate
+        
+        # Calculate daily inflation rate
+        self.daily_inflation_rate = (1 + annual_inflation_rate) ** (1/365) - 1
+        
+        # Track the total Real (inflation-adjusted) amount invested
+        # This is the sum of each investment discounted to Day 0 purchasing power
+        self.total_invested_real = 0.0
     
     
     def invest_daily(self):
         """
         Simulate one day of investment activity.
         
-<<<<<<< HEAD
-        This method performs three main steps:
-        1. Apply compound interest to your existing portfolio (your money grows!)
-        2. Add today's new investment to the portfolio
-        3. Record all the details in the transaction history
-        
-=======
         This method performs these steps each day:
         1. Apply compound interest to your existing portfolio (your money grows!)
         2. If it's an investment day:
@@ -183,17 +186,12 @@ class MicroInvestment:
         Important: Compound interest is applied EVERY day, but new money is only
         added based on your frequency (daily, weekly, or monthly).
         
->>>>>>> f4970ac (Added options to choose varying investment amounts)
         The order is important! We apply returns FIRST, then add new money.
         This is how real investments work - your existing money earns returns
         before you add more.
         
         Example:
-<<<<<<< HEAD
-            >>> investor = MicroInvestment(daily_investment=10.0)
-=======
             >>> investor = MicroInvestment(investment_amount=10.0, frequency='daily')
->>>>>>> f4970ac (Added options to choose varying investment amounts)
             >>> investor.invest_daily()  # Invest for one day
             >>> print(f"Portfolio value: ${investor.portfolio_value:.2f}")
             >>> print(f"Platform fees collected: ${investor.vesto_main_funds:.2f}")
@@ -210,28 +208,13 @@ class MicroInvestment:
         # This is where the "magic" of compound interest happens!
         # Example: If you have $100 and daily rate is 0.02%, you earn $0.02
         #          New value = $100 × 1.0002 = $100.02
-<<<<<<< HEAD
-=======
         # NOTE: This happens EVERY day, regardless of investment frequency
->>>>>>> f4970ac (Added options to choose varying investment amounts)
         self.portfolio_value *= (1 + self.daily_return_rate)
         
         # Calculate how much we earned today from compound interest
         # This is the difference between the new value and old value
         daily_return = self.portfolio_value - portfolio_before
         
-<<<<<<< HEAD
-        # STEP 3: Add today's fresh investment
-        # This is the new money we're putting in today
-        self.portfolio_value += self.daily_investment
-        
-        # Update the total amount we've invested so far
-        self.total_invested += self.daily_investment
-        
-        # Increment the day counter
-        self.days_invested += 1
-        
-=======
         # STEP 3: Check if today is an investment day
         # For daily: invest every day (next_investment_day = 1, 2, 3, ...)
         # For weekly: invest every 7 days (next_investment_day = 1, 8, 15, ...)
@@ -275,10 +258,14 @@ class MicroInvestment:
             # Track the net amount invested (what's actually in the portfolio)
             self.total_invested += net_investment
             
+            # Track the Real (inflation-adjusted) net amount invested
+            # Formula: Investment / (1 + daily_inflation_rate)^days
+            discount_factor = 1 / ((1 + self.daily_inflation_rate) ** self.days_invested)
+            self.total_invested_real += net_investment * discount_factor
+            
             # Schedule the next investment day
             self.next_investment_day += self.investment_interval_days
         
->>>>>>> f4970ac (Added options to choose varying investment amounts)
         # STEP 4: Record this transaction for our history
         # Calculate what date this transaction represents
         # (start_date + number of days since we started)
@@ -289,17 +276,10 @@ class MicroInvestment:
         transaction = {
             'day': self.days_invested,  # Which day number is this?
             'date': transaction_date.strftime('%Y-%m-%d'),  # What's the actual date?
-<<<<<<< HEAD
-<<<<<<< HEAD
-            'investment_amount': self.daily_investment,  # How much did we invest today?
-=======
-            'investment_amount': investment_made_today,  # How much did we invest today?
->>>>>>> f4970ac (Added options to choose varying investment amounts)
-=======
+            'investment_amount': gross_investment,  # How much did we invest today? (Gross)
             'gross_investment': round(gross_investment, 2),  # Amount client paid (before fee)
             'platform_fee': round(platform_fee, 2),  # 2% fee deducted
             'net_investment': round(net_investment, 2),  # Amount added to portfolio (after fee)
->>>>>>> 0c3abf9 (data of simulations)
             'portfolio_before': round(portfolio_before, 2),  # Value before today's activity
             'daily_return': round(daily_return, 2),  # How much did we earn from interest?
             'portfolio_after': round(self.portfolio_value, 2),  # Value after everything
@@ -396,6 +376,38 @@ class MicroInvestment:
         # Calculate: (Profit ÷ Total Invested) × 100 = Percentage Return
         return (self.get_total_return() / self.total_invested) * 100
     
+    def get_real_portfolio_value(self):
+        """
+        Calculate the inflation-adjusted value of your portfolio.
+        
+        This shows what your portfolio is worth in "today's money" (Day 0 purchasing power).
+        
+        Returns:
+            float: Real portfolio value.
+        """
+        # Discount the current portfolio value back to day 0
+        return self.portfolio_value / ((1 + self.daily_inflation_rate) ** self.days_invested)
+
+    def get_real_total_return(self):
+        """
+        Calculate your profit or loss adjusted for inflation.
+        
+        Returns:
+            float: Real total return in dollars.
+        """
+        return self.get_real_portfolio_value() - self.total_invested_real
+
+    def get_real_return_percentage(self):
+        """
+        Calculate your real return as a percentage.
+        
+        Returns:
+            float: Real return percentage.
+        """
+        if self.total_invested_real == 0:
+            return 0.0
+        return (self.get_real_total_return() / self.total_invested_real) * 100
+    
     def get_summary(self):
         """
         Get a complete summary of your investment as a dictionary.
@@ -406,21 +418,11 @@ class MicroInvestment:
         Returns:
             dict: A dictionary with these keys:
                 - 'days_invested': How many days you've been investing
-<<<<<<< HEAD
-<<<<<<< HEAD
-                - 'daily_investment': How much you invest each day
-=======
-                - 'investment_amount': How much you invest per period
-                - 'frequency': How often you invest (daily/weekly/monthly)
->>>>>>> f4970ac (Added options to choose varying investment amounts)
-                - 'total_invested': Total money you've put in
-=======
                 - 'investment_amount': How much you invest per period (gross)
                 - 'frequency': How often you invest (daily/weekly/monthly)
                 - 'total_gross_invested': Total amount paid (before fees)
                 - 'total_platform_fees': Total 2% fees collected
                 - 'total_net_invested': Total actually invested (after fees)
->>>>>>> 0c3abf9 (data of simulations)
                 - 'portfolio_value': Current value of your portfolio
                 - 'total_return': Your profit/loss in dollars
                 - 'return_percentage': Your profit/loss as a percentage
@@ -428,11 +430,7 @@ class MicroInvestment:
                 - 'vesto_main_funds': Platform fees account balance
         
         Example:
-<<<<<<< HEAD
-            >>> investor = MicroInvestment(daily_investment=10.0)
-=======
             >>> investor = MicroInvestment(investment_amount=10.0, frequency='daily')
->>>>>>> f4970ac (Added options to choose varying investment amounts)
             >>> investor.invest_for_days(30)
             >>> summary = investor.get_summary()
             >>> print(f"Gross invested: ${summary['total_gross_invested']}")
@@ -455,7 +453,14 @@ class MicroInvestment:
             'total_return': round(self.get_total_return(), 2),
             'return_percentage': round(self.get_return_percentage(), 2),
             'annual_return_rate': self.annual_return_rate * 100,  # Convert to percentage
-            'vesto_main_funds': round(self.vesto_main_funds, 2)
+            'annual_inflation_rate': self.annual_inflation_rate * 100,
+            'vesto_main_funds': round(self.vesto_main_funds, 2),
+            
+            # Real (Inflation-Adjusted) Metrics
+            'total_real_invested': round(self.total_invested_real, 2),
+            'real_portfolio_value': round(self.get_real_portfolio_value(), 2),
+            'real_total_return': round(self.get_real_total_return(), 2),
+            'real_return_percentage': round(self.get_real_return_percentage(), 2)
         }
     
     def print_summary(self):
@@ -466,11 +471,7 @@ class MicroInvestment:
         Perfect for quickly checking how your investment is doing!
         
         Example:
-<<<<<<< HEAD
-            >>> investor = MicroInvestment(daily_investment=10.0)
-=======
             >>> investor = MicroInvestment(investment_amount=70.0, frequency='weekly')
->>>>>>> f4970ac (Added options to choose varying investment amounts)
             >>> investor.invest_for_days(365)
             >>> investor.print_summary()
             
@@ -479,11 +480,7 @@ class MicroInvestment:
             MICRO-INVESTMENT SUMMARY
             ==================================================
             Days Invested:        365
-<<<<<<< HEAD
-            Daily Investment:     $10.00
-=======
             Investment Amount:    $70.00 weekly
->>>>>>> f4970ac (Added options to choose varying investment amounts)
             Annual Return Rate:   8.0%
             --------------------------------------------------
             Gross Invested:       $3650.00
@@ -512,6 +509,7 @@ class MicroInvestment:
         print(f"Days Invested:        {summary['days_invested']}")
         print(f"Investment Amount:    ${summary['investment_amount']:.2f} {summary['frequency']}")
         print(f"Annual Return Rate:   {summary['annual_return_rate']:.1f}%")
+        print(f"Annual Inflation:     {summary['annual_inflation_rate']:.1f}%")
         
         # Print a divider
         print("-"*50)
@@ -522,7 +520,16 @@ class MicroInvestment:
         print(f"Net Invested:         ${summary['total_net_invested']:.2f}")
         print(f"Portfolio Value:      ${summary['portfolio_value']:.2f}")
         print(f"Total Return:         ${summary['total_return']:.2f}")
-        print(f"Return Percentage:    ${summary['return_percentage']:.2f}%")
+        print(f"Return Percentage:    {summary['return_percentage']:.2f}%")
+        
+        # Print real (inflation-adjusted) section
+        if summary['annual_inflation_rate'] > 0:
+            print("-"*50)
+            print("REAL VALUE (Inflation Adjusted)")
+            print(f"Real Invested:        ${summary['total_real_invested']:.2f}")
+            print(f"Real Portfolio Value: ${summary['real_portfolio_value']:.2f}")
+            print(f"Real Return:          ${summary['real_total_return']:.2f}")
+            print(f"Real Return %:        {summary['real_return_percentage']:.2f}%")
         
         # Print platform fees section
         print("-"*50)
