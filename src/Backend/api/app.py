@@ -37,8 +37,9 @@ def invest():
         'gross_amount': gross_amount,
         'fee': fee,
         'net_invested': net_invested,
-        'fund_id': fund_id
-    })
+        'fund_id': fund_id,
+        'status': 'success'
+    }), 201
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -70,6 +71,28 @@ def get_funds():
         'funds': funds,
         'count': len(funds)
     })
+
+@app.route('/portfolio', methods=['GET'])
+def get_portfolio():
+    """
+    Returns the current portfolio summary.
+    Includes Nominal and Real (inflation-adjusted) metrics.
+    """
+    summary = engine.get_summary()
+    
+    return jsonify({
+        'total_invested': summary['total_net_invested'],
+        'portfolio_value': summary['portfolio_value'],
+        'nominal_roi': summary['return_percentage'],
+        'real_roi': summary['real_return_percentage']
+    })
+
+#DEBUGGING ENDPOINT
+@app.route("/debug", methods=["GET"])
+def debug():
+    return jsonify([str(rule) for rule in app.url_map.iter_rules()])
+    
+
 
 if __name__ == '__main__':
     # Run the application
