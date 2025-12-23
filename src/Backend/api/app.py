@@ -9,6 +9,14 @@ from investment_engine import MicroInvestment
 # Create the Flask application
 app = Flask(__name__)
 
+# Manual CORS support
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
 # Initialize the investment engine
 engine = MicroInvestment(investment_amount=10.0)  # Default init
 
@@ -98,7 +106,7 @@ def get_insights():
 @app.route("/debug", methods=["GET"])
 def debug():
     return jsonify([str(rule) for rule in app.url_map.iter_rules()])
-    
+
 
 
 if __name__ == '__main__':
