@@ -158,6 +158,25 @@ class MicroInvestment:
         if self.total_invested == 0:
             return 0.0
         return (self.get_total_return() / self.total_invested) * 100
+
+    def advance_time(self, days):
+        """
+        Simulate the passage of time without adding new investments.
+        This is a deterministic calculation for demo purposes.
+        Only applies compounding growth to the existing portfolio.
+        """
+        # Apply compounding for N days
+        # Formula: Future Value = Present Value * (1 + daily_rate) ^ days
+        growth_factor = (1 + self.daily_return_rate) ** days
+        self.portfolio_value *= growth_factor
+        
+        # Update day counter
+        self.days_invested += days
+        
+        # Also update real value tracking (apply inflation discount for the skipped period)
+        # Note: total_invested_real is historically fixed mostly, but we track value against inflation
+        # so simply updating days_invested affects get_real_portfolio_value()'s discount calculation
+
     
     def get_real_portfolio_value(self):
         """Calculate Real (Inflation-Adjusted) portfolio value."""
