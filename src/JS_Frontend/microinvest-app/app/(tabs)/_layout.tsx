@@ -68,12 +68,13 @@ export default function TabLayout() {
       />
 
       {/* Explore / Stack - Layers */}
+      {/* Simulation - Flask/Beaker */}
       <Tabs.Screen
-        name="explore"
+        name="simulation"
         options={{
-          title: 'Explore',
+          title: 'Simulation',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "layers" : "layers-outline"} size={26} color={color} />
+            <MaterialCommunityIcons name={focused ? "flask" : "flask-outline"} size={26} color={color} />
           ),
         }}
       />

@@ -75,6 +75,7 @@ export default function HomeScreen() {
     }
   };
 
+
   useEffect(() => {
     fetchPortfolio();
   }, []);
@@ -141,6 +142,7 @@ export default function HomeScreen() {
             <Text style={styles.progressMessage}> 30% Of Your Expenses, Looks Good.</Text>
           </View>
         </View>
+
       </View>
 
       {/* Main Content (White/Light Area) */}

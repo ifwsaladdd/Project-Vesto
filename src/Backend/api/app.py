@@ -102,6 +102,25 @@ def get_insights():
     """
     return jsonify(engine.get_insights())
 
+@app.route('/simulate', methods=['POST'])
+def simulate_time():
+    """
+    Simulate the passage of time for demo purposes.
+    Expects JSON: { "days": 30 }
+    """
+    data = request.get_json()
+    days = data.get('days', 30) if data else 30
+    
+    try:
+        engine.advance_time(int(days))
+        return jsonify({
+            'status': 'success',
+            'days_advanced': days,
+            'message': f'Simulated passage of {days} days.'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 #DEBUGGING ENDPOINT
 @app.route("/debug", methods=["GET"])
 def debug():
