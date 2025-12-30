@@ -2,6 +2,8 @@ from flask import Flask, jsonify, request
 import sys
 import os
 
+from datetime import datetime, date
+
 # Add Engine directory to path to allow import
 sys.path.append(os.path.join(os.path.dirname(__file__), '../Engine'))
 from investment_engine import MicroInvestment
@@ -16,6 +18,9 @@ def after_request(response):
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
+
+# In-memory storage for income entries
+income_entries = []
 
 # Initialize the investment engine
 engine = MicroInvestment(investment_amount=10.0)  # Default init
@@ -58,6 +63,48 @@ def health_check():
     return jsonify({
         'status': 'ok'
     })
+
+
+# --- Income Endpoints ---
+@app.route('/income/add', methods=['POST'])
+def add_income():
+    """
+    Add a new income entry.
+    Expects JSON: { "amount": float, "source": str }
+    """
+    data = request.get_json()
+    if not data or 'amount' not in data or 'source' not in data:
+        return jsonify({'error': 'Invalid request. Provide amount and source.'}), 400
+    try:
+        amount = float(data['amount'])
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Amount must be a number.'}), 400
+    source = str(data['source'])
+    entry = {
+        'amount': amount,
+        'source': source,
+        'timestamp': datetime.now().isoformat()
+    }
+    income_entries.append(entry)
+    return jsonify({'status': 'success', 'entry': entry}), 201
+
+
+@app.route('/income/summary', methods=['GET'])
+def income_summary():
+    """
+    Return the most recent income entry and total income earned today.
+    """
+    if not income_entries:
+        return jsonify({'recent': None, 'total_today': 0.0})
+    # Find total income for today
+    today_str = date.today().isoformat()
+    total_today = sum(
+        entry['amount']
+        for entry in income_entries
+        if entry['timestamp'][:10] == today_str
+    )
+    recent = income_entries[-1]
+    return jsonify({'recent': recent, 'total_today': total_today})
 
 @app.route('/funds', methods=['GET'])
 def get_funds():
