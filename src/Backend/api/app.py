@@ -22,6 +22,28 @@ def after_request(response):
 # In-memory storage for income entries
 income_entries = []
 
+# In-memory storage for expense entries
+expense_entries = []
+
+# Helper: Add a new expense entry
+def add_expense(amount, category):
+    entry = {
+        'amount': float(amount),
+        'category': str(category),
+        'timestamp': datetime.now().isoformat()
+    }
+    expense_entries.append(entry)
+    return entry
+
+# Helper: Compute total expenses for the current day
+def total_expenses_today():
+    today_str = date.today().isoformat()
+    return sum(
+        entry['amount']
+        for entry in expense_entries
+        if entry['timestamp'][:10] == today_str
+    )
+
 # Initialize the investment engine
 engine = MicroInvestment(investment_amount=10.0)  # Default init
 
